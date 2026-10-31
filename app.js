@@ -49,14 +49,15 @@ import {
 
 // ---------- CONFIGURAÇÃO (preencha) ----------
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  authDomain: "SEU_PROJETO.firebaseapp.com",
-  databaseURL: "https://SEU_PROJETO-default-rtdb.firebaseio.com",
-  projectId: "SEU_PROJETO",
-  storageBucket: "SEU_PROJETO.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:xxxxxxxxxxxx",
+  apiKey: "AIzaSyDRarwiJUkJSy8ySzOZHTdLzlfqqrs2-sA",
+  authDomain: "link-38983.firebaseapp.com",
+  databaseURL: "https://link-38983-default-rtdb.firebaseio.com",
+  projectId: "link-38983",
+  storageBucket: "link-38983.firebasestorage.app",
+  messagingSenderId: "850875896",
+  appId: "1:850875896:web:6b3691a11cad09d4ae320d"
 };
+
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
