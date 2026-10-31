@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="no-referrer" />
+  <title>Link Gatilho</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Carregando / mensagens -->
+  <section id="view-status" class="view center hidden">
+    <div class="card small">
+      <div class="spinner" id="status-spinner"></div>
+      <h2 id="status-title">Carregando…</h2>
+      <p id="status-text" class="muted"></p>
+    </div>
+  </section>
+
+  <!-- Login -->
+  <section id="view-login" class="view center hidden">
+    <form id="login-form" class="card small">
+      <h1 class="logo">Link<span>Gatilho</span></h1>
+      <p class="muted">Entre para gerenciar seus links protegidos.</p>
+      <label>E-mail<input type="email" id="login-email" required /></label>
+      <label>Senha<input type="password" id="login-pass" required minlength="6" /></label>
+      <button type="submit" class="btn primary">Entrar</button>
+      <p id="login-error" class="error"></p>
+    </form>
+  </section>
+
+  <!-- Painel -->
+  <section id="view-admin" class="view hidden">
+    <header class="topbar">
+      <h1 class="logo">Link<span>Gatilho</span></h1>
+      <div class="row">
+        <span id="user-email" class="muted"></span>
+        <button id="btn-logout" class="btn ghost">Sair</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <form id="link-form" class="card">
+        <h2 id="form-title">Novo link</h2>
+        <input type="hidden" id="link-id" />
+        <div class="grid">
+          <label>Nome<input type="text" id="link-title" required placeholder="Ex.: Área do aluno" /></label>
+          <label>URL de origem<input type="url" id="link-url" required placeholder="https://..." /></label>
+          <label>Validade do link temporário (min)
+            <input type="number" id="link-ttl" min="1" max="1440" value="10" required />
+          </label>
+          <label>Modo de exibição
+            <select id="link-mode">
+              <option value="iframe">Embutido (esconde a URL)</option>
+              <option value="redirect">Redirecionar (mostra a URL)</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <button type="submit" class="btn primary">Salvar</button>
+          <button type="button" id="btn-cancel" class="btn ghost hidden">Cancelar</button>
+        </div>
+      </form>
+
+      <div class="card">
+        <div class="row between">
+          <h2>Meus links</h2>
+          <input type="search" id="search" placeholder="Buscar…" />
+        </div>
+        <ul id="link-list" class="list"></ul>
+        <p id="empty" class="muted hidden">Nenhum link cadastrado ainda.</p>
+      </div>
+    </main>
+  </section>
+
+  <!-- Visualizador do link temporário -->
+  <section id="view-viewer" class="viewer hidden">
+    <iframe id="viewer-frame" title="Conteúdo" referrerpolicy="no-referrer"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-downloads"></iframe>
+    <div id="viewer-timer" class="timer"></div>
+  </section>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
