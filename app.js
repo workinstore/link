@@ -247,7 +247,7 @@ function initAdmin() {
 
   $("btn-logout").addEventListener("click", () => signOut(auth));
   $("btn-cancel").addEventListener("click", resetForm);
-  $("search").addEventListener("input", renderList);
+  $("search").addEventListener("input", () => { currentPage = 1; renderList(); });
   $("link-favicon").addEventListener("input", previewFav);
   $("btn-fetch").addEventListener("click", async () => {
     const url = $("link-url").value.trim();
@@ -309,37 +309,78 @@ function previewFav() {
   if (v) img.src = v;
 }
 
+const PER_PAGE = 8;       // links por página
+const MAX_PAGES = 5;      // botões de página visíveis
+let currentPage = 1;
+
 function renderList() {
   const q = $("search").value.toLowerCase();
   const entries = Object.entries(allLinks)
-    .filter(([, l]) => (l.title + l.url).toLowerCase().includes(q))
+    .filter(([, l]) => ((l.title || "") + (l.url || "")).toLowerCase().includes(q))
     .sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
 
+  const totalPages = Math.max(1, Math.ceil(entries.length / PER_PAGE));
+  currentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const pageItems = entries.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
+
   $("empty").classList.toggle("hidden", entries.length > 0);
-  $("link-list").innerHTML = entries.map(([id, l]) => `
-    <li class="item">
-      <div class="row between">
-        <h3>${l.favicon ? `<img src="${escapeHtml(l.favicon)}" alt="" />` : ""}${escapeHtml(l.title)}</h3>
-        <div class="row">
+  $("link-list").innerHTML = pageItems.map(([id, l]) => `
+    <li class="item${l.active === false ? " off" : ""}">
+      <div class="item-main">
+        <div class="item-title">
+          ${l.favicon ? `<img src="${escapeHtml(l.favicon)}" alt="" />` : ""}
+          <h3 title="${escapeHtml(l.title)}">${escapeHtml(l.title)}</h3>
           <span class="badge">${l.ttl} min</span>
           <span class="badge">${l.mode === "redirect" ? "redireciona" : "embutido"}</span>
-          ${l.active === false ? '<span class="badge">inativo</span>' : ""}
+          ${l.active === false ? '<span class="badge warn">inativo</span>' : ""}
         </div>
+        <div class="url" title="${escapeHtml(l.url)}">${escapeHtml(l.url)}${l.pageTitle ? ` · Aba: ${escapeHtml(l.pageTitle)}` : ""}</div>
       </div>
-      <div class="url">${escapeHtml(l.url)}</div>
-      ${l.pageTitle ? `<div class="muted">Aba: ${escapeHtml(l.pageTitle)}</div>` : ""}
-      <div class="trigger">
-        <code>${escapeHtml(triggerUrl(id))}</code>
-        <button class="btn sm primary" data-act="copy" data-id="${id}">Copiar</button>
-      </div>
-      <div class="row">
-        <button class="btn sm ghost" data-act="open" data-id="${id}">Testar</button>
-        <button class="btn sm ghost" data-act="edit" data-id="${id}">Editar</button>
-        <button class="btn sm ghost" data-act="toggle" data-id="${id}">${l.active === false ? "Ativar" : "Desativar"}</button>
-        <button class="btn sm ghost danger" data-act="del" data-id="${id}">Excluir</button>
+      <div class="item-actions">
+        <button class="btn xs primary" data-act="copy" data-id="${id}" title="${escapeHtml(triggerUrl(id))}">Copiar</button>
+        <button class="btn xs ghost" data-act="open" data-id="${id}">Testar</button>
+        <button class="btn xs ghost" data-act="edit" data-id="${id}">Editar</button>
+        <button class="btn xs ghost" data-act="toggle" data-id="${id}">${l.active === false ? "Ativar" : "Desativar"}</button>
+        <button class="btn xs ghost danger" data-act="del" data-id="${id}">Excluir</button>
       </div>
     </li>`).join("");
+
+  renderPager(totalPages, entries.length);
 }
+
+function renderPager(totalPages, total) {
+  const pager = $("pager");
+  pager.classList.toggle("hidden", totalPages <= 1);
+  if (totalPages <= 1) { pager.innerHTML = ""; return; }
+
+  // janela de até 5 páginas centrada na atual
+  let start = Math.max(1, currentPage - Math.floor(MAX_PAGES / 2));
+  let end = Math.min(totalPages, start + MAX_PAGES - 1);
+  start = Math.max(1, end - MAX_PAGES + 1);
+
+  const arrows = totalPages > MAX_PAGES;
+  let html = "";
+  if (arrows) {
+    html += `<button class="pg" data-page="1" ${currentPage === 1 ? "disabled" : ""} aria-label="Primeira página">«</button>`;
+    html += `<button class="pg" data-page="${currentPage - 1}" ${currentPage === 1 ? "disabled" : ""} aria-label="Página anterior">‹</button>`;
+  }
+  for (let p = start; p <= end; p++) {
+    html += `<button class="pg${p === currentPage ? " active" : ""}" data-page="${p}" ${p === currentPage ? 'aria-current="page"' : ""}>${p}</button>`;
+  }
+  if (arrows) {
+    html += `<button class="pg" data-page="${currentPage + 1}" ${currentPage === totalPages ? "disabled" : ""} aria-label="Próxima página">›</button>`;
+    html += `<button class="pg" data-page="${totalPages}" ${currentPage === totalPages ? "disabled" : ""} aria-label="Última página">»</button>`;
+  }
+  html += `<span class="pg-info">${total} links · pág. ${currentPage}/${totalPages}</span>`;
+  pager.innerHTML = html;
+}
+
+$("pager").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-page]");
+  if (!b || b.disabled) return;
+  currentPage = Number(b.dataset.page);
+  renderList();
+});
 
 $("link-list").addEventListener("click", async (e) => {
   const btn = e.target.closest("button[data-act]");
