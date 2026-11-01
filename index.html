@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <link rel="icon" id="page-icon" href="data:," />
 </head>
 <body>
   <!-- Carregando / mensagens -->
@@ -57,6 +58,12 @@
               <option value="redirect">Redirecionar (mostra a URL)</option>
             </select>
           </label>
+          <label>Título da aba (vazio = automático)<input type="text" id="link-ptitle" placeholder="Captado da página original" /></label>
+          <label>Favicon (vazio = automático)<input type="url" id="link-favicon" placeholder="https://.../favicon.ico" /></label>
+        </div>
+        <div class="row">
+          <button type="button" id="btn-fetch" class="btn ghost">Captar título e ícone</button>
+          <img id="fav-preview" class="fav-preview hidden" alt="" />
         </div>
         <div class="row">
           <button type="submit" class="btn primary">Salvar</button>

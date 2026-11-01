@@ -97,8 +97,40 @@ const triggerUrl = (id) => `${baseUrl()}?g=${encodeURIComponent(id)}`;
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+// ---------- Título e favicon da página ----------
+function setPageMeta(title, icon) {
+  document.title = title || "\u200E";
+  $("page-icon").href = icon || "data:,";
+}
+const faviconFor = (url) => {
+  try { return `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=64`; }
+  catch { return ""; }
+};
+// Capta título e ícone da página original (serviço público com CORS liberado)
+async function fetchPageMeta(url) {
+  let title = "", icon = "";
+  try {
+    const r = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
+    const j = await r.json();
+    if (j.status === "success") { title = j.data.title || ""; icon = (j.data.logo && j.data.logo.url) || ""; }
+  } catch (e) { console.warn("microlink", e); }
+  if (!title) {
+    try {
+      const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+      const html = (await r.json()).contents || "";
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      title = (doc.querySelector("title")?.textContent || "").trim();
+      const l = doc.querySelector('link[rel~="icon"]');
+      if (!icon && l) icon = new URL(l.getAttribute("href"), url).href;
+    } catch (e) { console.warn("allorigins", e); }
+  }
+  if (!title) { try { title = new URL(url).hostname; } catch {} }
+  return { title, icon: icon || faviconFor(url) };
+}
+
 // ---------- Roteamento ----------
 const params = new URLSearchParams(location.search);
+if (params.get("g") || params.get("t")) setPageMeta("Carregando…", "");
 if (params.get("g")) handleTrigger(params.get("g"));
 else if (params.get("t")) handleToken(params.get("t"));
 else initAdmin();
@@ -118,6 +150,8 @@ async function handleTrigger(linkId) {
       linkId,
       url: link.url,
       mode: link.mode || "iframe",
+      pageTitle: link.pageTitle || "",
+      favicon: link.favicon || faviconFor(link.url),
       createdAt: Date.now(),
       expiresAt: Date.now() + ttl * 60000,
     });
@@ -142,6 +176,14 @@ async function handleToken(token) {
 
     if (data.mode === "redirect") return location.replace(data.url);
 
+    let pTitle = data.pageTitle, pIcon = data.favicon;
+    if (!pTitle) {
+      const l = await get(ref(db, `links/${data.linkId}`)).catch(() => null);
+      const v = l && l.exists() ? l.val() : {};
+      pTitle = v.pageTitle || ""; pIcon = pIcon || v.favicon;
+    }
+    setPageMeta(pTitle || new URL(data.url).hostname, pIcon || faviconFor(data.url));
+    $("viewer-frame").title = pTitle || "Conteúdo";
     show("view-viewer");
     $("viewer-frame").src = data.url;
 
@@ -200,11 +242,29 @@ function initAdmin() {
   $("btn-logout").addEventListener("click", () => signOut(auth));
   $("btn-cancel").addEventListener("click", resetForm);
   $("search").addEventListener("input", renderList);
+  $("link-favicon").addEventListener("input", previewFav);
+  $("btn-fetch").addEventListener("click", async () => {
+    const url = $("link-url").value.trim();
+    if (!url) return toast("Informe a URL primeiro");
+    const b = $("btn-fetch"); b.disabled = true; b.textContent = "Captando…";
+    const m = await fetchPageMeta(url);
+    $("link-ptitle").value = m.title; $("link-favicon").value = m.icon; previewFav();
+    b.disabled = false; b.textContent = "Captar título e ícone";
+    toast("Título e ícone captados");
+  });
 
   $("link-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const id = $("link-id").value;
+    const url = $("link-url").value.trim();
+    let pageTitle = $("link-ptitle").value.trim(), favicon = $("link-favicon").value.trim();
+    if (!pageTitle || !favicon) {
+      toast("Captando título e ícone…");
+      const m = await fetchPageMeta(url);
+      pageTitle = pageTitle || m.title; favicon = favicon || m.icon;
+    }
     const data = {
+      pageTitle, favicon,
       title: $("link-title").value.trim(),
       url: $("link-url").value.trim(),
       ttl: Math.max(1, Math.min(1440, Number($("link-ttl").value) || 10)),
@@ -234,6 +294,13 @@ function resetForm() {
   $("link-ttl").value = 10;
   $("form-title").textContent = "Novo link";
   $("btn-cancel").classList.add("hidden");
+  previewFav();
+}
+
+function previewFav() {
+  const v = $("link-favicon").value.trim(), img = $("fav-preview");
+  img.classList.toggle("hidden", !v);
+  if (v) img.src = v;
 }
 
 function renderList() {
@@ -246,7 +313,7 @@ function renderList() {
   $("link-list").innerHTML = entries.map(([id, l]) => `
     <li class="item">
       <div class="row between">
-        <h3>${escapeHtml(l.title)}</h3>
+        <h3>${l.favicon ? `<img src="${escapeHtml(l.favicon)}" alt="" />` : ""}${escapeHtml(l.title)}</h3>
         <div class="row">
           <span class="badge">${l.ttl} min</span>
           <span class="badge">${l.mode === "redirect" ? "redireciona" : "embutido"}</span>
@@ -254,6 +321,7 @@ function renderList() {
         </div>
       </div>
       <div class="url">${escapeHtml(l.url)}</div>
+      ${l.pageTitle ? `<div class="muted">Aba: ${escapeHtml(l.pageTitle)}</div>` : ""}
       <div class="trigger">
         <code>${escapeHtml(triggerUrl(id))}</code>
         <button class="btn sm primary" data-act="copy" data-id="${id}">Copiar</button>
@@ -285,6 +353,9 @@ $("link-list").addEventListener("click", async (e) => {
       $("link-url").value = l.url;
       $("link-ttl").value = l.ttl;
       $("link-mode").value = l.mode || "iframe";
+      $("link-ptitle").value = l.pageTitle || "";
+      $("link-favicon").value = l.favicon || "";
+      previewFav();
       $("form-title").textContent = "Editar link";
       $("btn-cancel").classList.remove("hidden");
       window.scrollTo({ top: 0, behavior: "smooth" });
