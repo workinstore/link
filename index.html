@@ -27,7 +27,9 @@
       <p class="muted">Entre para gerenciar seus links protegidos.</p>
       <label>E-mail<input type="email" id="login-email" required /></label>
       <label>Senha<input type="password" id="login-pass" required minlength="6" /></label>
-      <button type="submit" class="btn primary">Entrar</button>
+      <button type="submit" id="login-btn" class="btn primary">
+        <span id="login-spin" class="btn-spin hidden"></span>Entrar
+      </button>
       <p id="login-error" class="error"></p>
     </form>
   </section>

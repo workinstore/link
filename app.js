@@ -232,10 +232,16 @@ function initAdmin() {
       $("login-error").textContent = "Acesso restrito ao administrador.";
       return;
     }
+    const btn = $("login-btn"), spin = $("login-spin");
+    btn.disabled = true;
+    spin.classList.remove("hidden");
     try {
       await signInWithEmailAndPassword(auth, email, $("login-pass").value);
     } catch {
       $("login-error").textContent = "E-mail ou senha inválidos.";
+    } finally {
+      btn.disabled = false;
+      spin.classList.add("hidden");
     }
   });
 

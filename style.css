@@ -4,7 +4,7 @@
   --line: #262a35;
   --text: #eceef3;
   --muted: #8a90a2;
-  --accent: #c6ff3d;
+  --accent: #4ade80;
   --accent-ink: #111;
   --danger: #ff5a5a;
   --radius: 14px;
@@ -58,6 +58,14 @@ input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1
 }
 .btn:active { transform: scale(.97); }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover { background: #3ecf6f; }
+.btn[disabled] { opacity: .75; cursor: progress; }
+.btn-spin {
+  display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(0,0,0,.2); border-top-color: var(--accent-ink);
+  vertical-align: -2px; margin-right: 8px;
+  animation: spin .8s linear infinite;
+}
 .btn.ghost:hover { background: #20232c; }
 .btn.danger { color: var(--danger); }
 .btn.sm { padding: 6px 10px; font-size: .8rem; }
