@@ -1,42 +1,6 @@
 /* =====================================================================
    LINK GATILHO — app.js
    ---------------------------------------------------------------------
-   1) Crie um projeto no Firebase, ative Authentication (E-mail/Senha)
-      e crie o usuário admin@admin.com em Authentication > Users.
-   2) Ative o Realtime Database e cole as REGRAS abaixo em "Regras".
-   3) Preencha firebaseConfig com os dados do seu projeto.
-   4) GITHUB PAGES: envie os 3 arquivos para a raiz do repositório,
-      ative Settings > Pages (branch main, pasta /root) e adicione
-      SEU_USUARIO.github.io em Firebase > Authentication > Settings >
-      Authorized domains. Sem build, sem servidor: 100% estático.
-
-   URLs:
-     index.html           -> painel (login)
-     index.html?g=ID      -> LINK GATILHO (gera o link temporário)
-     index.html?t=TOKEN   -> LINK TEMPORÁRIO (mostra o conteúdo)
-
-   REGRAS DO REALTIME DATABASE (somente admin@admin.com pode gerenciar):
-   {
-     "rules": {
-       "links": {
-         ".read": "auth != null && auth.token.email === 'admin@admin.com'",
-         "$id": {
-           ".read": true,
-           ".write": "auth != null && auth.token.email === 'admin@admin.com'"
-         }
-       },
-       "tokens": {
-         ".read": false,
-         "$token": {
-           ".read": true,
-           ".write": "!data.exists() && newData.exists()",
-           ".validate": "newData.hasChildren(['linkId','h','mode','expiresAt']) && root.child('links/' + newData.child('linkId').val()).exists() && newData.child('expiresAt').val() > now && newData.child('expiresAt').val() <= now + (root.child('links/' + newData.child('linkId').val() + '/ttl').val() * 60000) + 60000"
-         }
-       }
-     }
-   }
-   Obs.: ".read" no nível de cada item (e não da lista) impede que
-   visitantes listem todos os links/tokens — só lê quem conhece o ID.
    ===================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
