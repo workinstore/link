@@ -28,8 +28,14 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // Único administrador permitido
-const ADMIN_EMAIL = "admin@admin.com";
-const isAdmin = (u) => !!u && (u.email || "").toLowerCase() === ADMIN_EMAIL;
+// Apenas o hash SHA-256 do e-mail fica no código
+const ADMIN_EMAIL_HASH = "5edfa2692bdacc5e6ee805c626c50cb44cebb065f092d9a1067d89f74dacd326";
+async function sha256(txt) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(txt));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+const isAdminEmail = async (email) => (await sha256((email || "").trim().toLowerCase())) === ADMIN_EMAIL_HASH;
+const isAdmin = async (u) => !!u && (await isAdminEmail(u.email));
 
 // ---------- Helpers ----------
 const $ = (id) => document.getElementById(id);
@@ -200,9 +206,9 @@ let allLinks = {};
 
 function initAdmin() {
   status("Carregando…");
-  onAuthStateChanged(auth, (user) => {
+  onAuthStateChanged(auth, async (user) => {
     if (!user) return show("view-login");
-    if (!isAdmin(user)) {
+    if (!(await isAdmin(user))) {
       signOut(auth);
       $("login-error").textContent = "Acesso restrito ao administrador.";
       return show("view-login");
@@ -219,7 +225,7 @@ function initAdmin() {
     e.preventDefault();
     $("login-error").textContent = "";
     const email = $("login-email").value.trim().toLowerCase();
-    if (email !== ADMIN_EMAIL) {
+    if (!(await isAdminEmail(email))) {
       $("login-error").textContent = "Acesso restrito ao administrador.";
       return;
     }
