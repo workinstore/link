@@ -30,7 +30,7 @@
          "$token": {
            ".read": true,
            ".write": "!data.exists() && newData.exists()",
-           ".validate": "newData.hasChildren(['linkId','url','mode','expiresAt']) && root.child('links/' + newData.child('linkId').val() + '/url').val() === newData.child('url').val() && newData.child('expiresAt').val() > now && newData.child('expiresAt').val() <= now + (root.child('links/' + newData.child('linkId').val() + '/ttl').val() * 60000) + 60000"
+           ".validate": "newData.hasChildren(['linkId','h','mode','expiresAt']) && root.child('links/' + newData.child('linkId').val()).exists() && newData.child('expiresAt').val() > now && newData.child('expiresAt').val() <= now + (root.child('links/' + newData.child('linkId').val() + '/ttl').val() * 60000) + 60000"
          }
        }
      }
@@ -92,6 +92,32 @@ function randomToken(len = 32) {
   return Array.from(arr, (n) => chars[n % chars.length]).join("");
 }
 
+// ---------- Codificação do link original ----------
+// O link é salvo e trafega apenas como hash (XOR + base64url com salt aleatório)
+// e só é decodificado em memória no momento de abrir o iframe.
+const _K = "LgT\u00a7k9#vQ2!xZ";
+function encodeUrl(url) {
+  const salt = crypto.getRandomValues(new Uint8Array(6));
+  const bytes = new TextEncoder().encode(url);
+  const out = new Uint8Array(salt.length + bytes.length);
+  out.set(salt);
+  bytes.forEach((b, i) => { out[salt.length + i] = b ^ salt[i % salt.length] ^ _K.charCodeAt(i % _K.length); });
+  return btoa(String.fromCharCode(...out)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function decodeUrl(h) {
+  const bin = atob(h.replace(/-/g, "+").replace(/_/g, "/"));
+  const arr = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  const salt = arr.slice(0, 6), data = arr.slice(6);
+  return new TextDecoder().decode(data.map((b, i) => b ^ salt[i % 6] ^ _K.charCodeAt(i % _K.length)));
+}
+// Carrega o iframe por um blob: intermediário — o atributo src exibe só "blob:…"
+function loadHidden(frame, h) {
+  const html = `<!doctype html><meta name="referrer" content="no-referrer"><script>(${decodeUrl.toString().replace(/_K/g, JSON.stringify(_K))})&&location.replace((${decodeUrl.toString().replace(/_K/g, JSON.stringify(_K))})(${JSON.stringify(h)}))<\/script>`;
+  const blobUrl = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  frame.src = blobUrl;
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+}
+
 const baseUrl = () => location.origin + location.pathname.replace(/index\.html$/, "");
 const triggerUrl = (id) => `${baseUrl()}?g=${encodeURIComponent(id)}`;
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) =>
@@ -148,7 +174,7 @@ async function handleTrigger(linkId) {
     const token = randomToken();
     await set(ref(db, `tokens/${token}`), {
       linkId,
-      url: link.url,
+      h: encodeUrl(link.url),
       mode: link.mode || "iframe",
       pageTitle: link.pageTitle || "",
       favicon: link.favicon || faviconFor(link.url),
@@ -174,7 +200,8 @@ async function handleToken(token) {
       return status("Link expirado", "Este acesso temporário expirou. Use o link original para gerar um novo.", false);
     }
 
-    if (data.mode === "redirect") return location.replace(data.url);
+    const realUrl = data.h ? decodeUrl(data.h) : data.url;
+    if (data.mode === "redirect") return location.replace(realUrl);
 
     let pTitle = data.pageTitle, pIcon = data.favicon;
     if (!pTitle) {
@@ -182,10 +209,10 @@ async function handleToken(token) {
       const v = l && l.exists() ? l.val() : {};
       pTitle = v.pageTitle || ""; pIcon = pIcon || v.favicon;
     }
-    setPageMeta(pTitle || new URL(data.url).hostname, pIcon || faviconFor(data.url));
+    setPageMeta(pTitle || new URL(realUrl).hostname, pIcon || faviconFor(realUrl));
     $("viewer-frame").title = pTitle || "Conteúdo";
     show("view-viewer");
-    $("viewer-frame").src = data.url;
+    loadHidden($("viewer-frame"), data.h || encodeUrl(realUrl));
 
     const tick = () => {
       const left = data.expiresAt - Date.now();
